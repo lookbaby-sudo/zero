@@ -12,8 +12,21 @@ dist/
 # editor
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 
 # misc
 .DS_Store
 *.log
 .env*
+.env.local
+
+# python backend
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+
+# python 临时缓存
+__pycache__/
+*.pyc
