@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from pypinyin import lazy_pinyin, Style
+from snownlp import SnowNLP
+
 
 
 
@@ -13,7 +16,7 @@ app.add_middleware(
 
 
 profile = {
-    "heroTitle": "关于我（来自后端）",  # → 临时加的标记，验证完删掉
+    "heroTitle": "关于我",  # → 临时加的标记，验证完删掉
     "heroSubtitle": "项目，创意，灵感，心得，我的作品",
     "featuredWork": {
         "kicker": "作品",
@@ -34,12 +37,24 @@ class AnalyzeRequest(BaseModel):
 def get_profile():
     return profile
 
+def score_label(score):
+    if score >= 0.6:
+        return "偏积极"
+    elif score <= 0.4:
+        return "偏消极"
+    else:
+        return "中性"
+
 @app.post("/api/analyze")
+
+    
 def analyze(req: AnalyzeRequest):
+    text = req.text
+    score = round(SnowNLP(text).sentiments, 2)                    # 真模型打的分
     return {
-        "text": req.text,
-        "score": 0.5,
-        "label": "偏平静",
-        "pinyin": "（模块 6 再说）",
+        "text": text,
+        "score": score,
+        "label": score_label(score),                                        # ← 先留着，下面处理
+        "pinyin": " ".join(lazy_pinyin(text, style=Style.TONE)),  # 真拼音，带声调
     }
 
