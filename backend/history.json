@@ -1,0 +1,23 @@
+[
+  {
+    "text": "今天的风很轻，适合把脑海里的想法慢慢写下来。",
+    "score": 1.0,
+    "label": "偏积极",
+    "pinyin": "jīn tiān de fēng hěn qīng ， shì hé bǎ nǎo hǎi lǐ de xiǎng fǎ màn màn xiě xià lái 。",
+    "created_at": "2026-09-03T08:23:22+00:00"
+  },
+  {
+    "text": "我身上似乎有一个不可战胜的夏天",
+    "score": 0.89,
+    "label": "偏积极",
+    "pinyin": "wǒ shēn shàng sì hū yǒu yí gè bù kě zhàn shèng de xià tiān",
+    "created_at": "2026-09-03T08:23:49+00:00"
+  },
+  {
+    "text": "我爱你，你要记得我",
+    "score": 0.91,
+    "label": "偏积极",
+    "pinyin": "wǒ ài nǐ ， nǐ yào jì de wǒ",
+    "created_at": "2026-09-03T08:24:33+00:00"
+  }
+]
