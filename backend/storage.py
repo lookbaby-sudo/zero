@@ -21,6 +21,11 @@ def init_db():
         created_at TEXT
     )
     """)
+    # 迁移：旧库补上 engine 列（记录结果来源：llm / snownlp），SQLite 不支持
+    # ADD COLUMN IF NOT EXISTS，所以先查表结构再决定是否加列
+    cols = [row[1] for row in cur.execute("PRAGMA table_info(history)").fetchall()]
+    if "engine" not in cols:
+        cur.execute("ALTER TABLE history ADD COLUMN engine TEXT DEFAULT 'snownlp'")
     conn.commit()
     conn.close()
 
@@ -28,8 +33,9 @@ def save_record(record):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO history (text, score, label, pinyin, created_at) VALUES (?, ?, ?, ?, ?)",
-        [record["text"], record["score"], record["label"], record["pinyin"], record["created_at"]],
+        "INSERT INTO history (text, score, label, pinyin, created_at, engine) VALUES (?, ?, ?, ?, ?, ?)",
+        [record["text"], record["score"], record["label"], record["pinyin"],
+         record["created_at"], record.get("engine", "snownlp")],
     )
     cur.execute("CREATE INDEX IF NOT EXISTS idx_history_created ON history(created_at)")
     conn.commit()
@@ -49,4 +55,3 @@ def get_history(limit):
     for row in rows:
         records.append(dict(row))
     return records
-

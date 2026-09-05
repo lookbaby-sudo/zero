@@ -18,7 +18,9 @@ dist/
 .DS_Store
 *.log
 .env*
+!.env.example
 .env.local
+preview/
 
 # python backend
 backend/.venv/
