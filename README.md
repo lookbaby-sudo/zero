@@ -138,6 +138,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location / {
@@ -146,7 +147,15 @@ server {
 }
 ```
 
-改完 `nginx -t && systemctl reload nginx`。
+仓库里的 [`deploy/nginx-zero.conf`](deploy/nginx-zero.conf) 就是这份，可以直接拷到 `/etc/nginx/sites-enabled/`。
+
+改完 `nginx -t && systemctl reload nginx`。反代生效后：
+
+- `http://<服务器IP>/api/profile` 能通（**不带 8000**）；
+- `http://<服务器IP>:8000/...` 从公网**连不上**（8000 不对公网开放）；
+- `http://<服务器IP>/docs` 返回 404（被静态目录兜住，接口文档不外露）。
+
+那四行 `proxy_set_header` 是有用的：转手一次，来源会丢——真实 IP、原域名、原协议（http 还是 https）都得靠请求头带过去，否则后端看到的全是 `127.0.0.1` 和 `http`。`X-` 前缀只是老约定，说明"这不是 HTTP 标准头，是大家约好这么传的"。
 
 **6. 验证**
 
