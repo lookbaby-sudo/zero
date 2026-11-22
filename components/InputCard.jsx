@@ -3,7 +3,6 @@
 // 文字实验室的"输入区"卡片。这一节给"开始分析"接上了后端：
 // 点按钮就把输入的文字 POST 给 /api/analyze，拿到结果通过 onResult 交给父组件。
 // 请求出问题时用 try/catch 接住，在按钮上方给一行提示，不让界面无声失效。
-// 后端地址暂时写死在下面，跟着课件，这一节最后会把它收进 .env.local。
 import { useState } from "react";
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -20,6 +19,7 @@ export default function InputCard({ onResult }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
+        credentials: "include",   // 跨源也要带上 session_id 这张 cookie，否则每次都是新访客
       });
 
       if (!res.ok) {

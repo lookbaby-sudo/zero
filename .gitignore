@@ -22,6 +22,10 @@ dist/
 .env.local
 preview/
 
+# 本地数据库（数据不进 git，跟着代码走只会天天变）
+backend/*.db
+backend/*.db.bak
+
 # python backend
 backend/.venv/
 backend/__pycache__/
