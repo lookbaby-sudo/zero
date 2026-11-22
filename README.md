@@ -157,7 +157,11 @@ server {
 
 那四行 `proxy_set_header` 是有用的：转手一次，来源会丢——真实 IP、原域名、原协议（http 还是 https）都得靠请求头带过去，否则后端看到的全是 `127.0.0.1` 和 `http`。`X-` 前缀只是老约定，说明"这不是 HTTP 标准头，是大家约好这么传的"。
 
-**6. 验证**
+**6. 安全组 / 防火墙**
+
+只放行 **22（SSH）** 和 **80（HTTP）**。**8000 不要放行**——它只监听 `127.0.0.1`，本来就只服务同一台机器上的 nginx，公网连不上正是预期结果。以后上 HTTPS 再放 443。
+
+**7. 验证**
 
 1. 浏览器访问 `http://<服务器IP>/`，首页能打开；
 2. 进文字实验室，随便分析一句，结果正常返回；
@@ -178,29 +182,36 @@ server {
 
 | 键 | 说明 | 本地 | 线上 |
 | --- | --- | --- | --- |
-| `ALLOWED_ORIGINS` | 允许跨源访问的前端地址，多个用逗号分隔 | `http://localhost:3000` | 同源部署可以写站点地址；本地开发必须放行 3000 |
+| `ALLOWED_ORIGINS` | 允许跨源访问的前端地址，多个用逗号分隔 | `http://localhost:3000` | 照填站点地址。反代同源后浏览器不再发跨域请求，但这行仍要留着——代码从这里读，缺省会回退到 `http://localhost:3000` |
 | `LLM_API_KEY` | 大模型 Key（可选，不填自动回退 SnowNLP） | 可空 | 可空 |
 | `LLM_BASE_URL` | OpenAI 兼容接口地址 | 默认阿里云百炼 | 同左 |
 | `LLM_MODEL` | 模型名 | `qwen-turbo` | 同左 |
 
-## 日常操作
+## 日常发布
 
 ```bash
-# 看状态
-systemctl status zero-backend --no-pager
+cd ~/zero
+git pull
 
-# 实时看日志（后端输出现在走 journald，不再写文件）
-journalctl -u zero-backend -f
-
-# 改完后端代码后重启
-systemctl restart zero-backend
-
-# 停止 / 开机自启开关
-systemctl stop zero-backend
-systemctl disable zero-backend
+npm run build                     # 前端改了才需要
+systemctl restart zero-backend    # 后端改了才需要
 ```
 
-前端改了要重新 `npm run build`；nginx 不需要重启（静态文件直接读磁盘），改 nginx 配置才需要 `nginx -t && systemctl reload nginx`。
+前端是静态文件，nginx 直接读磁盘，不用重启；只有改了 nginx 配置才需要 `nginx -t && systemctl reload nginx`。
+
+## 常用运维命令
+
+```bash
+systemctl status zero-backend     # 看状态
+systemctl restart zero-backend    # 重启
+systemctl stop zero-backend       # 停止
+
+journalctl -u zero-backend -f     # 实时看日志（Ctrl+C 退出）
+journalctl -u zero-backend -n 50  # 看最近 50 行
+
+nginx -t                          # 改完 Nginx 配置先验语法
+systemctl reload nginx            # 再让它重读
+```
 
 ## 说明
 
@@ -208,3 +219,4 @@ systemctl disable zero-backend
 - **会话**：每个浏览器第一次访问时，后端会发一个 `session_id` cookie（HttpOnly、30 天），之后的分析记录都挂在它名下，所以「每个人只看得到自己那份」。清 cookie 就等于换了个新访客。
 - **进程托管**：后端由 systemd 管理，开机自启、崩溃自动重启；日志用 `journalctl -u zero-backend` 看。旧的手工 `nohup` 方式已不需要。
 - **部署形态**：nginx 同源代理，所以浏览器端没有跨域问题；如果哪天前后端拆到不同域名，才需要重新配 `ALLOWED_ORIGINS` 和 `credentials`。
+- **文档**：部署方式、配置项、运维命令一变，这份 README 就跟着改。过期的文档比没有文档更糟——照着旧文档做，只会掉进坑里。
