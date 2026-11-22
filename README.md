@@ -88,17 +88,40 @@ pip install -r requirements.txt
 cp .env.example .env             # 按下面「配置说明」填
 ```
 
-**4. 后端：在后台跑起来**
+**4. 后端：交给 systemd 托管**
 
-```bash
-cd ~/zero/backend
-nohup .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 >> uvicorn.log 2>&1 &
+新建 `/etc/systemd/system/zero-backend.service`（仓库里的 [`deploy/zero-backend.service`](deploy/zero-backend.service) 就是这份，可以直接拷）：
+
+```ini
+[Unit]
+Description=zero-to-tech backend (FastAPI + uvicorn)
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/zero/backend
+ExecStart=/root/zero/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-- 末尾的 `&` 把命令丢到后台；`nohup` 让它不再跟着 SSH 会话走，关掉终端也不会停。
-- `> uvicorn.log 2>&1` 把正常输出和报错都写进 `uvicorn.log`。
-- 用完整路径调用 `.venv/bin/uvicorn`，不依赖 `activate`——后台进程不继承你终端的虚拟环境。
+```bash
+systemctl daemon-reload          # 让 systemd 读到新文件
+systemctl enable --now zero-backend   # 开机自启 + 立刻启动
+systemctl status zero-backend --no-pager
+```
+
+几处关键：
+
+- `WorkingDirectory` 必须是**绝对路径**，不能省——`history.db` 是相对路径，换个目录启动就会建到别处去。
+- `ExecStart` 写 `.venv` 里的完整路径，不需要 `activate`，也不依赖 shell 环境。
+- `Restart=always` + `RestartSec=3`：进程一死立刻重拉（实测 `kill -9` 后 3 秒就起来了，PID 会变）。
+- `WantedBy=multi-user.target`：开机自启。
 - 监听 `127.0.0.1` 而不是 `0.0.0.0`：只有本机能连，外部一律走 nginx，8000 不对公网开放。
+- `User=root` 是因为项目放在 `/root/zero` 下（`/root` 权限 700）。按最小权限原则本该用专用账号，那需要先把项目挪到 `/opt` 之类的位置，属于后续优化。
 
 **5. nginx**
 
@@ -154,23 +177,25 @@ server {
 ## 日常操作
 
 ```bash
-# 看日志
-tail -f ~/zero/backend/uvicorn.log
+# 看状态
+systemctl status zero-backend --no-pager
 
-# 确认后端进程（PPID 应该是 1，说明已脱离 SSH 会话）
-ps -eo pid,ppid,cmd | grep '[u]vicorn main:app'
+# 实时看日志（后端输出现在走 journald，不再写文件）
+journalctl -u zero-backend -f
 
-# 停止
-pkill -f 'uvicorn main:app'
+# 改完后端代码后重启
+systemctl restart zero-backend
 
-# 重启（改完后端代码都要重启，因为没开 --reload）
-cd ~/zero/backend
-nohup .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 >> uvicorn.log 2>&1 &
+# 停止 / 开机自启开关
+systemctl stop zero-backend
+systemctl disable zero-backend
 ```
+
+前端改了要重新 `npm run build`；nginx 不需要重启（静态文件直接读磁盘），改 nginx 配置才需要 `nginx -t && systemctl reload nginx`。
 
 ## 说明
 
 - **数据**：`backend/history.db` 是本地数据，已在 `.gitignore` 里；换机器、重建目录前记得备份，否则历史记录会丢。
 - **会话**：每个浏览器第一次访问时，后端会发一个 `session_id` cookie（HttpOnly、30 天），之后的分析记录都挂在它名下，所以「每个人只看得到自己那份」。清 cookie 就等于换了个新访客。
-- **当前限制**：后端是 `nohup` 手动拉起的，**服务器重启后不会自动起来**。要彻底解决，得给它配一个 systemd 服务。
+- **进程托管**：后端由 systemd 管理，开机自启、崩溃自动重启；日志用 `journalctl -u zero-backend` 看。旧的手工 `nohup` 方式已不需要。
 - **部署形态**：nginx 同源代理，所以浏览器端没有跨域问题；如果哪天前后端拆到不同域名，才需要重新配 `ALLOWED_ORIGINS` 和 `credentials`。
